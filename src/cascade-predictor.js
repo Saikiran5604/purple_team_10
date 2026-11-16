@@ -214,24 +214,28 @@ class CascadePredictor {
     };
   }
 
-  generateMitigations(predictions, triggerIds) {
+  generateMitigations(predictions, triggerIds, failedNodeIds = []) {
+    const failedSet = new Set(failedNodeIds.length > 0 ? failedNodeIds : triggerIds);
     const candidates = [];
 
     for (const [nodeId, pred] of predictions) {
-      if (pred.probability <= 0.3 && !triggerIds.includes(nodeId)) continue;
+      if (pred.probability <= 0.3 && !failedSet.has(nodeId)) continue;
 
       const node = this.graph.getNode(nodeId);
       if (!node || !node.mitigation_options) continue;
 
       const revenue = node.revenue_per_hour || 0;
+      const isFailed = failedSet.has(nodeId);
 
       for (const opt of node.mitigation_options) {
-        const score = opt.effectiveness * pred.probability * (revenue / 100000);
+        const baseScore = opt.effectiveness * pred.probability * (revenue / 100000);
+        const score = isFailed ? baseScore * 10 : baseScore;
         const savings = Math.round(revenue * opt.effectiveness * pred.probability);
 
         let priority;
-        if (score > 3) priority = 'critical';
-        else if (score > 1) priority = 'high';
+        if (isFailed) priority = 'critical';
+        else if (baseScore > 3) priority = 'high';
+        else if (baseScore > 1) priority = 'high';
         else priority = 'medium';
 
         candidates.push({
@@ -245,13 +249,14 @@ class CascadePredictor {
           description: opt.description,
           estimatedSavingsPerHour: savings,
           priority,
+          isFailed,
           score
         });
       }
     }
 
     candidates.sort((a, b) => b.score - a.score);
-    return candidates.slice(0, 8).map(({ score, ...rest }) => rest);
+    return candidates.slice(0, 10).map(({ score, ...rest }) => rest);
   }
 
   formatPredictions(predictions, triggerIds, context = {}) {
@@ -282,7 +287,7 @@ class CascadePredictor {
     const highRiskResults = results.filter(r => r.probability > 0.3);
     const deduplicatedPop = this.calculateDeduplicatedPopulation(highRiskResults);
     const revenue = this.calculateRevenueImpact(results);
-    const mitigations = this.generateMitigations(predictions, triggerIds);
+    const mitigations = this.generateMitigations(predictions, triggerIds, triggerIds);
     const maxRepairTime = highRiskResults.length > 0
       ? Math.max(...highRiskResults.map(r => r.repairTimeHours))
       : 0;

@@ -422,7 +422,7 @@ async function applyMit(nodeId,mitId,savings,btn){
         const ids=stillFailed.map(f=>f.nodeId);
         const c=getCtx();
         const p=await api(API+'/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({failedNodes:ids,...c})});
-        curP=p;showPred(p);showRevenue(p);paintG(p);showKPI(p);
+        curP=p;showPred(p);showRevenue(p);showMit(p);paintG(p);showKPI(p);
       }else{
         toast('All services restored! Cascade halted.',3000);
         await restoreAll();
