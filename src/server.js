@@ -75,6 +75,42 @@ app.get('/api/context-options', (req, res) => {
   });
 });
 
+app.post('/api/mitigate', (req, res) => {
+  const { nodeId, mitigationId } = req.body;
+  if (!nodeId || !mitigationId) {
+    return res.status(400).json({ error: 'nodeId and mitigationId required' });
+  }
+  if (!graph.hasNode(nodeId)) {
+    return res.status(404).json({ error: `Unknown node: ${nodeId}` });
+  }
+
+  const node = graph.getNode(nodeId);
+  const options = node.mitigation_options || [];
+  const mitigation = options.find(o => o.id === mitigationId);
+  if (!mitigation) {
+    return res.status(404).json({ error: `Unknown mitigation: ${mitigationId} for node ${nodeId}` });
+  }
+
+  const result = simulator.applyMitigation(nodeId, mitigation.effectiveness);
+  if (result.error) {
+    return res.status(400).json(result);
+  }
+
+  res.json({
+    success: true,
+    mitigation: {
+      id: mitigation.id,
+      name: mitigation.name,
+      type: mitigation.type,
+      effectiveness: mitigation.effectiveness,
+      time_minutes: mitigation.time_minutes,
+      description: mitigation.description
+    },
+    updatedStatus: result.status,
+    event: result.event
+  });
+});
+
 let lastTickTime = 0;
 app.get('/api/status', (req, res) => {
   const now = Date.now();

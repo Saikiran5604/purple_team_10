@@ -273,7 +273,7 @@ function drawGraph(data){
       +'<div class="tip-l"><span class="tip-k">Reliability</span><span class="tip-v">'+(d.baseReliability*100).toFixed(0)+'%</span></div>'
       +'<div class="tip-l"><span class="tip-k">Repair</span><span class="tip-v">'+Number(d.repairTimeHours)+'h</span></div>'
       +'<div class="tip-l"><span class="tip-k">Population</span><span class="tip-v">'+fP(d.population_affected)+'</span></div>'
-      +'<div class="tip-l"><span class="tip-k">Revenue/hr</span><span class="tip-v">'+fR(d.economicImpactPerHour||0)+'</span></div>';
+      +'<div class="tip-l"><span class="tip-k">Revenue/hr</span><span class="tip-v">'+fR(d.revenue_per_hour||0)+'</span></div>';
     t.style.display='block';t.style.left=(e.pageX+12)+'px';t.style.top=(e.pageY-8)+'px';
   }).on('mouseout',()=>{$('tip').style.display='none'})
     .on('click',(e,d)=>{if(!busy)runFail([d.id])});
@@ -317,7 +317,7 @@ function showPred(data){
       +'<div class="pred-top"><span class="pred-n">'+esc(p.icon)+' '+esc(p.name)+(p.hasBackup?'<span class="tag-bk">BACKUP</span>':'')+'</span>'
       +'<span class="pred-p" style="color:'+c+'">'+(p.probability*100).toFixed(0)+'%</span></div>'
       +'<div class="pred-bar"><div class="pred-fill" style="width:'+p.probability*100+'%;background:'+c+'"></div></div>'
-      +'<div class="pred-meta"><span>'+(p.isTrigger?'TRIGGER':'Depth '+p.depth)+'</span><span>'+fP(p.populationAffected)+' people</span><span>'+fR(p.economicImpactPerHour)+'/hr</span></div></div>';
+      +'<div class="pred-meta"><span>'+(p.isTrigger?'TRIGGER':'Depth '+p.depth)+'</span><span>'+fP(p.populationAffected)+' people</span><span>'+fR(p.revenuePerHour)+'/hr</span></div></div>';
   }).join('');
 }
 
@@ -325,14 +325,15 @@ function showMit(data){
   const el=$('mit-list');
   if(!data.mitigations||!data.mitigations.length){el.innerHTML='<div class="empty">No mitigations available</div>';return}
   el.innerHTML=data.mitigations.slice(0,6).map((m,i)=>{
-    const bc=m.type==='trigger_mitigation'?'var(--red)':'var(--amber)';
-    const bl=m.type==='trigger_mitigation'?'RESTORE':'PREVENT';
+    const bc=m.priority==='critical'?'var(--red)':'var(--amber)';
+    const bl=m.priority==='critical'?'CRITICAL':'HIGH';
     return '<div class="mit" style="border-left:3px solid '+bc+';animation:si .3s ease '+(i*60+200)+'ms both">'
-      +'<div class="mit-act">'+esc(m.nodeIcon)+' '+esc(m.action)+'</div>'
-      +'<div class="mit-row"><span><span class="mit-badge" style="background:'+bc+'22;color:'+bc+'">'+bl+'</span> '+esc(m.nodeName)+'</span>'
-      +'<span>-'+(m.cascadeReduction*100).toFixed(0)+'% cascade</span>'
-      +'<span>'+fR(m.cost)+'</span>'
-      +'<span>'+m.deployTime+'min</span></div></div>';
+      +'<div class="mit-act">'+esc(m.action)+'</div>'
+      +'<div style="font-size:8px;color:var(--text-3);margin-bottom:2px">'+esc(m.description||'')+'</div>'
+      +'<div class="mit-row"><span><span class="mit-badge" style="background:'+bc+'22;color:'+bc+'">'+bl+'</span> '+esc(m.targetNode)+'</span>'
+      +'<span>-'+(m.effectiveness*100).toFixed(0)+'% risk</span>'
+      +'<span>saves '+fR(m.estimatedSavingsPerHour)+'/hr</span>'
+      +'<span>'+m.time_minutes+'min</span></div></div>';
   }).join('');
 }
 
@@ -368,9 +369,10 @@ async function showKPI(p){
   $('k-pop').style.color=s.estimatedPopulationAffected>2e5?'var(--red)':'var(--text-1)';
   $('k-dep').textContent=s.cascadeDepth;
   $('k-dep').style.color=s.cascadeDepth>3?'var(--red)':s.cascadeDepth>1?'var(--amber)':'var(--text-1)';
-  $('k-rev').textContent=fR(s.revenueAtRiskPerHour||0);
-  $('k-rev').style.color=s.revenueAtRiskPerHour>1e6?'var(--red)':'var(--cyan)';
-  $('k-rev-f').textContent=p.revenue?'Projected: '+fR(p.revenue.totalProjected)+' total':'Per hour of downtime';
+  const revHr=s.revenue?s.revenue.perHour:0;
+  $('k-rev').textContent=fR(revHr);
+  $('k-rev').style.color=revHr>1e6?'var(--red)':'var(--cyan)';
+  $('k-rev-f').textContent=s.revenue?'Projected 4h: '+fR(s.revenue.projected4h):'Per hour of downtime';
   $('k-eta').textContent=s.estimatedRecoveryHours+' h';
   $('k-eta').style.color=s.estimatedRecoveryHours>4?'var(--red)':'var(--text-1)';
 }
@@ -428,7 +430,7 @@ function openM(){
   if(!GD)return;picks.clear();
   $('ng').innerHTML=GD.nodes.map(n=>'<button class="n-opt" data-id="'+esc(n.id)+'">'
     +esc(n.icon)+' '+esc(n.name)+(n.hasBackupPower?' <span style="color:var(--green);font-size:7px">[B]</span>':'')
-    +'<div style="font-size:8px;color:var(--text-3);margin-top:1px">'+esc(n.category)+' &middot; '+fR(n.economicImpactPerHour||0)+'/hr</div></button>').join('');
+    +'<div style="font-size:8px;color:var(--text-3);margin-top:1px">'+esc(n.category)+' &middot; '+fR(n.revenue_per_hour||0)+'/hr</div></button>').join('');
   $('ng').querySelectorAll('.n-opt').forEach(b=>{b.addEventListener('click',()=>{
     const id=b.dataset.id;if(picks.has(id)){picks.delete(id);b.classList.remove('pk')}else{picks.add(id);b.classList.add('pk')}
     $('mc').textContent=picks.size+' selected';

@@ -175,7 +175,7 @@ class CascadePredictor {
           });
         }
 
-        if (!visited.has(dep.target) && finalProb > 0.10) {
+        if (!visited.has(dep.target) && finalProb > 0.05) {
           visited.add(dep.target);
           queue.push({ id: dep.target, depth: depth + 1 });
         }
