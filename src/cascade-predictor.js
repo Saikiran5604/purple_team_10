@@ -25,24 +25,14 @@ function getTimePeriod(hour) {
 }
 
 const OUTDOOR_CATEGORIES = new Set(['electricity', 'water', 'roads']);
+const CITY_POPULATION_CAP = 2100000;
 
 class CascadePredictor {
-  constructor(graph, infraData) {
+  constructor(graph) {
     this.graph = graph;
-    this.infraData = infraData;
     this.rng = seededRandom(123);
     this.historicalFailures = this.generateHistoricalData();
     this.conditionalProbabilities = this.trainModel();
-
-    this.populationZones = {
-      north_residential: { population: 120000, services: ['power_substation_a', 'mobile_tower_cluster_a', 'traffic_signals_north'] },
-      north_services: { population: 58000, services: ['hospital_north', 'traffic_control_center'] },
-      south_residential: { population: 140000, services: ['power_substation_b', 'mobile_tower_cluster_b', 'traffic_signals_south'] },
-      south_services: { population: 76000, services: ['hospital_south'] },
-      central_infra: { population: 92000, services: ['telecom_data_center', 'water_pump_station'] },
-      citywide_grid: { population: 485000, services: ['power_grid', 'emergency_services'] },
-      water_supply: { population: 380000, services: ['water_treatment', 'water_reservoir'] }
-    };
   }
 
   generateHistoricalData() {
@@ -120,7 +110,7 @@ class CascadePredictor {
     } = options;
 
     const validIds = failedNodeIds.filter(id => this.graph.hasNode(id));
-    if (validIds.length === 0) return { predictions: [], summary: this.emptySummary(failedNodeIds) };
+    if (validIds.length === 0) return { predictions: [], summary: this.emptySummary(failedNodeIds), mitigations: [] };
 
     const timePeriod = getTimePeriod(timeOfDay);
     const weatherMult = WEATHER_MULTIPLIERS[weather] || 1.0;
@@ -183,11 +173,11 @@ class CascadePredictor {
             edgeType: dep.type,
             fromNode: id
           });
+        }
 
-          if (!visited.has(dep.target) && finalProb > 0.05) {
-            visited.add(dep.target);
-            queue.push({ id: dep.target, depth: depth + 1 });
-          }
+        if (!visited.has(dep.target) && finalProb > 0.10) {
+          visited.add(dep.target);
+          queue.push({ id: dep.target, depth: depth + 1 });
         }
       }
     }
@@ -196,120 +186,72 @@ class CascadePredictor {
   }
 
   calculateDeduplicatedPopulation(affectedResults) {
-    const hitZones = new Set();
+    let total = 0;
+    const counted = new Set();
     for (const r of affectedResults) {
-      for (const [zoneName, zone] of Object.entries(this.populationZones)) {
-        if (zone.services.includes(r.nodeId)) {
-          hitZones.add(zoneName);
-        }
+      if (counted.has(r.nodeId)) continue;
+      counted.add(r.nodeId);
+      const node = this.graph.getNode(r.nodeId);
+      if (node) {
+        total += node.population_affected || 0;
       }
     }
-
-    let total = 0;
-    if (hitZones.has('citywide_grid')) {
-      return this.populationZones.citywide_grid.population;
-    }
-
-    const northRes = hitZones.has('north_residential');
-    const southRes = hitZones.has('south_residential');
-
-    if (northRes) total += this.populationZones.north_residential.population;
-    if (southRes) total += this.populationZones.south_residential.population;
-    if (hitZones.has('north_services') && !northRes) total += this.populationZones.north_services.population;
-    if (hitZones.has('south_services') && !southRes) total += this.populationZones.south_services.population;
-    if (hitZones.has('central_infra')) total += this.populationZones.central_infra.population;
-    if (hitZones.has('water_supply')) {
-      const waterPop = this.populationZones.water_supply.population;
-      total = Math.max(total, Math.min(total + waterPop * 0.3, waterPop));
-    }
-
-    return total;
+    return Math.min(total, CITY_POPULATION_CAP);
   }
 
-  calculateRevenueImpact(predictions) {
+  calculateRevenueImpact(affectedResults) {
     let totalPerHour = 0;
-    const breakdown = [];
-
-    for (const p of predictions) {
-      const node = this.graph.getNode(p.nodeId);
-      if (!node || !node.economicImpactPerHour) continue;
-
-      const impact = node.economicImpactPerHour * p.probability;
-      totalPerHour += impact;
-
-      breakdown.push({
-        nodeId: p.nodeId,
-        name: p.name,
-        hourlyLoss: Math.round(impact),
-        totalLoss: Math.round(impact * p.repairTimeHours),
-        probability: p.probability
-      });
+    for (const r of affectedResults) {
+      const node = this.graph.getNode(r.nodeId);
+      if (node && node.revenue_per_hour) {
+        totalPerHour += node.revenue_per_hour * r.probability;
+      }
     }
-
-    breakdown.sort((a, b) => b.hourlyLoss - a.hourlyLoss);
-
     return {
-      totalPerHour: Math.round(totalPerHour),
-      totalProjected: Math.round(breakdown.reduce((s, b) => s + b.totalLoss, 0)),
-      breakdown: breakdown.slice(0, 8)
+      perHour: Math.round(totalPerHour),
+      projected4h: Math.round(totalPerHour * 4),
+      projected24h: Math.round(totalPerHour * 24)
     };
   }
 
-  getMitigations(failedNodeIds, predictions) {
-    const mitigations = this.infraData.mitigations || {};
-    const result = [];
+  generateMitigations(predictions, triggerIds) {
+    const candidates = [];
 
-    const triggerSet = new Set(failedNodeIds);
-    const criticalPreds = predictions.filter(p => p.probability > 0.3 && !p.isTrigger);
+    for (const [nodeId, pred] of predictions) {
+      if (pred.probability <= 0.3 && !triggerIds.includes(nodeId)) continue;
 
-    for (const nodeId of failedNodeIds) {
-      const nodeMits = mitigations[nodeId];
-      if (!nodeMits) continue;
       const node = this.graph.getNode(nodeId);
+      if (!node || !node.mitigation_options) continue;
 
-      for (const m of nodeMits) {
-        const downstream = this.graph.getDependencies(nodeId);
-        const protectedCount = downstream.length;
-        const priority = m.reduction * protectedCount;
+      const revenue = node.revenue_per_hour || 0;
 
-        result.push({
-          nodeId,
-          nodeName: node ? node.name : nodeId,
-          nodeIcon: node ? node.icon : '',
-          action: m.action,
-          cascadeReduction: m.reduction,
-          cost: m.cost,
-          deployTime: m.timeMinutes,
-          protectedServices: protectedCount,
-          priority: parseFloat(priority.toFixed(2)),
-          type: 'trigger_mitigation'
+      for (const opt of node.mitigation_options) {
+        const score = opt.effectiveness * pred.probability * (revenue / 100000);
+        const savings = Math.round(revenue * opt.effectiveness * pred.probability);
+
+        let priority;
+        if (score > 3) priority = 'critical';
+        else if (score > 1) priority = 'high';
+        else priority = 'medium';
+
+        candidates.push({
+          id: opt.id,
+          action: opt.name,
+          targetNode: node.name,
+          targetNodeId: nodeId,
+          type: opt.type,
+          effectiveness: opt.effectiveness,
+          time_minutes: opt.time_minutes,
+          description: opt.description,
+          estimatedSavingsPerHour: savings,
+          priority,
+          score
         });
       }
     }
 
-    for (const p of criticalPreds.slice(0, 5)) {
-      const nodeMits = mitigations[p.nodeId];
-      if (!nodeMits) continue;
-
-      const best = nodeMits.reduce((a, b) => a.reduction > b.reduction ? a : b);
-      const node = this.graph.getNode(p.nodeId);
-
-      result.push({
-        nodeId: p.nodeId,
-        nodeName: node ? node.name : p.nodeId,
-        nodeIcon: node ? node.icon : '',
-        action: best.action,
-        cascadeReduction: best.reduction,
-        cost: best.cost,
-        deployTime: best.timeMinutes,
-        protectedServices: 0,
-        priority: parseFloat((best.reduction * p.probability * 2).toFixed(2)),
-        type: 'preventive'
-      });
-    }
-
-    result.sort((a, b) => b.priority - a.priority);
-    return result;
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates.slice(0, 8).map(({ score, ...rest }) => rest);
   }
 
   formatPredictions(predictions, triggerIds, context = {}) {
@@ -329,8 +271,8 @@ class CascadePredictor {
         isTrigger: triggerIds.includes(nodeId),
         riskLevel: pred.probability > 0.7 ? 'critical' : pred.probability > 0.4 ? 'high' : pred.probability > 0.2 ? 'medium' : 'low',
         populationAffected: node.population_affected,
+        revenuePerHour: node.revenue_per_hour || 0,
         repairTimeHours: node.repairTimeHours,
-        economicImpactPerHour: node.economicImpactPerHour || 0,
         hasBackup: !!node.hasBackupPower
       });
     }
@@ -339,17 +281,15 @@ class CascadePredictor {
 
     const highRiskResults = results.filter(r => r.probability > 0.3);
     const deduplicatedPop = this.calculateDeduplicatedPopulation(highRiskResults);
+    const revenue = this.calculateRevenueImpact(results);
+    const mitigations = this.generateMitigations(predictions, triggerIds);
     const maxRepairTime = highRiskResults.length > 0
       ? Math.max(...highRiskResults.map(r => r.repairTimeHours))
       : 0;
 
-    const revenue = this.calculateRevenueImpact(results);
-    const mitigations = this.getMitigations(triggerIds, results);
-
     return {
       predictions: results,
-      revenue,
-      mitigations: mitigations.slice(0, 10),
+      mitigations,
       summary: {
         totalAffectedServices: highRiskResults.length,
         criticalServices: results.filter(r => r.riskLevel === 'critical').length,
@@ -357,8 +297,8 @@ class CascadePredictor {
         estimatedPopulationAffected: deduplicatedPop,
         estimatedRecoveryHours: maxRepairTime,
         cascadeDepth: Math.max(...results.map(r => r.depth), 0),
-        revenueAtRiskPerHour: revenue.totalPerHour,
         triggerNodes: triggerIds,
+        revenue,
         context: {
           weather: context.weather || 'clear',
           timePeriod: context.timePeriod || 'midday',
@@ -377,8 +317,8 @@ class CascadePredictor {
       estimatedPopulationAffected: 0,
       estimatedRecoveryHours: 0,
       cascadeDepth: 0,
-      revenueAtRiskPerHour: 0,
       triggerNodes: triggerIds,
+      revenue: { perHour: 0, projected4h: 0, projected24h: 0 },
       context: { weather: 'clear', timePeriod: 'midday', weatherMultiplier: 1.0, timeMultiplier: 1.0 }
     };
   }
@@ -460,9 +400,9 @@ class CascadePredictor {
         return sum + (n ? n.population_affected : 0);
       }, 0);
 
-      const totalRevenue = downstream.reduce((sum, d) => {
+      const totalDownstreamRevenue = downstream.reduce((sum, d) => {
         const n = this.graph.getNode(d.target);
-        return sum + (n ? (n.economicImpactPerHour || 0) : 0);
+        return sum + (n ? (n.revenue_per_hour || 0) : 0);
       }, 0);
 
       risks.push({
@@ -475,12 +415,18 @@ class CascadePredictor {
         riskScore: parseFloat((downstream.length * 0.3 + uniqueCategories.size * 0.7).toFixed(2)),
         categories: Array.from(uniqueCategories),
         totalDownstreamPopulation: totalDownstreamPop,
-        totalDownstreamRevenue: totalRevenue,
+        totalDownstreamRevenue: totalDownstreamRevenue,
         hasBackup: !!node.hasBackupPower
       });
     }
     risks.sort((a, b) => b.riskScore - a.riskScore);
     return risks;
+  }
+
+  getMitigationOptions(nodeId) {
+    const node = this.graph.getNode(nodeId);
+    if (!node) return [];
+    return node.mitigation_options || [];
   }
 
   getWeatherOptions() {

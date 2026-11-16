@@ -131,6 +131,42 @@ class InfraSimulator {
     return affected;
   }
 
+  applyMitigation(nodeId, effectiveness) {
+    if (!this.graph.hasNode(nodeId)) {
+      return { error: `Unknown node: ${nodeId}` };
+    }
+
+    const s = this.status.get(nodeId);
+    if (!s) return { error: `No status for node: ${nodeId}` };
+
+    s.operational = true;
+    s.health = effectiveness * 85;
+    s.load = (1 - effectiveness) * 60;
+    s.lastUpdated = Date.now();
+
+    const node = this.graph.getNode(nodeId);
+    const event = {
+      timestamp: Date.now(),
+      tick: this.tick,
+      type: 'mitigation_applied',
+      nodeId,
+      name: node ? node.name : nodeId,
+      effectiveness
+    };
+    this.eventLog.push(event);
+    this.trimLog();
+
+    return {
+      event,
+      status: {
+        operational: s.operational,
+        health: s.health,
+        load: s.load,
+        lastUpdated: s.lastUpdated
+      }
+    };
+  }
+
   restoreNode(nodeId) {
     if (!this.graph.hasNode(nodeId)) {
       return { error: `Unknown node: ${nodeId}` };
