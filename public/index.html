@@ -90,10 +90,22 @@ select.cs:focus{border-color:var(--brand)}
 .pred-meta{display:flex;justify-content:space-between;font-size:8px;color:var(--text-3);margin-top:2px}
 .tag-bk{font-size:7px;background:var(--green-dim);color:var(--green);padding:1px 4px;border-radius:3px;margin-left:3px;vertical-align:middle}
 
-.mit{padding:6px 8px;border-radius:6px;border:1px solid var(--border);margin-bottom:2px;font-size:10px}
-.mit-act{font-weight:500;margin-bottom:2px}
+.mit{padding:6px 8px;border-radius:6px;border:1px solid var(--border);margin-bottom:2px;font-size:10px;transition:border-color .2s}
+.mit-act{font-weight:500;margin-bottom:2px;display:flex;justify-content:space-between;align-items:center}
 .mit-row{display:flex;justify-content:space-between;font-size:8px;color:var(--text-3)}
 .mit-badge{font-size:7px;padding:1px 4px;border-radius:3px;font-weight:600}
+.mit-apply{font-family:inherit;font-size:8px;font-weight:700;padding:2px 8px;border-radius:4px;border:1px solid var(--green);background:var(--green-dim);color:var(--green);cursor:pointer;transition:all .15s;text-transform:uppercase;letter-spacing:.3px}
+.mit-apply:hover{background:var(--green);color:#fff;box-shadow:0 0 12px rgba(16,185,129,.3)}
+.mit-apply:disabled{opacity:.4;cursor:not-allowed}
+.mit-applied{font-size:8px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.3px}
+.rev-card{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:4px}
+.rev-item{text-align:center;padding:6px 4px;border-radius:6px;background:var(--bg-0)}
+.rev-item-v{font-size:14px;font-weight:700;color:var(--cyan)}
+.rev-item-l{font-size:7px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+.rev-break{padding:3px 6px;font-size:9px;display:flex;justify-content:space-between;border-bottom:1px solid var(--border)}
+.rev-break:last-child{border-bottom:0}
+.savings-banner{margin:4px 0;padding:5px 8px;border-radius:6px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);font-size:9px;color:var(--green);display:none;animation:si .3s ease}
+.savings-banner strong{font-size:11px}
 
 .rh,.rr{display:grid;grid-template-columns:1fr 44px 36px;padding:3px 6px;font-size:9px;align-items:center;border-radius:4px}
 .rh{color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;font-size:7px}
@@ -184,8 +196,9 @@ select.cs:focus{border-color:var(--brand)}
 
   <div class="side">
     <div class="card" style="flex:0 0 auto"><div class="card-t">Scenarios <small>click to run</small></div><div class="card-b" id="sc-list"></div></div>
+    <div class="card" style="flex:0 0 auto" id="rev-card"><div class="card-t" style="color:var(--cyan)">Revenue Impact <small>financial loss from downtime</small></div><div class="card-b" id="rev-body"><div class="empty">Run a scenario to see revenue impact</div></div></div>
     <div class="card" style="flex:1 1 0;min-height:110px"><div class="card-t">Cascade Predictions <small id="pred-n">-</small></div><div class="card-b" id="pred-list"><div class="empty">Select a node or scenario</div></div></div>
-    <div class="card" style="flex:0 0 auto" id="mit-card"><div class="card-t" style="color:var(--green)">Mitigation Actions <small>how to stop the cascade</small></div><div class="card-b" id="mit-list"><div class="empty">Run a scenario to see recommendations</div></div></div>
+    <div class="card" style="flex:0 0 auto" id="mit-card"><div class="card-t" style="color:var(--green)">Halt Cascade <small>apply mitigations to stop spread</small></div><div id="savings-bar" class="savings-banner"></div><div class="card-b" id="mit-list"><div class="empty">Run a scenario to see recommendations</div></div></div>
     <div class="card" style="flex:0 0 auto"><div class="card-t">Risk Ranking <small>by downstream impact</small></div><div class="card-b" id="risk-tbl"></div></div>
     <div class="card" style="flex:0 0 auto;max-height:140px"><div class="card-t">Events <small id="evt-n">0</small></div><div class="card-b" id="evt-log"><div class="empty">No events yet</div></div></div>
   </div>
@@ -305,7 +318,7 @@ async function runFail(triggers){
 async function runPred(triggers){
   const c=getCtx();
   const p=await api(API+'/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({failedNodes:triggers,...c})});
-  curP=p;showPred(p);showMit(p);paintG(p);showKPI(p);
+  curP=p;showPred(p);showRevenue(p);showMit(p);paintG(p);showKPI(p);
 }
 
 function showPred(data){
@@ -321,20 +334,65 @@ function showPred(data){
   }).join('');
 }
 
+let appliedMits=new Set(),totalSaved=0;
+
+function showRevenue(data){
+  const el=$('rev-body');
+  const rev=data.summary.revenue;
+  if(!rev||rev.perHour===0){el.innerHTML='<div class="empty">No revenue impact</div>';return}
+  const breakdown=data.predictions.filter(p=>p.revenuePerHour>0).sort((a,b)=>b.revenuePerHour-a.revenuePerHour);
+  el.innerHTML='<div class="rev-card">'
+    +'<div class="rev-item"><div class="rev-item-v">'+fR(rev.perHour)+'</div><div class="rev-item-l">Per Hour</div></div>'
+    +'<div class="rev-item"><div class="rev-item-v">'+fR(rev.projected4h)+'</div><div class="rev-item-l">4-Hour Loss</div></div>'
+    +'<div class="rev-item"><div class="rev-item-v" style="color:var(--red)">'+fR(rev.projected24h)+'</div><div class="rev-item-l">24-Hour Loss</div></div>'
+    +'</div>'
+    +breakdown.slice(0,6).map(p=>'<div class="rev-break"><span>'+esc(p.icon)+' '+esc(p.name)+'</span><span style="color:var(--cyan);font-weight:600">'+fR(p.revenuePerHour)+'/hr</span></div>').join('');
+}
+
 function showMit(data){
   const el=$('mit-list');
+  appliedMits.clear();totalSaved=0;
+  $('savings-bar').style.display='none';
   if(!data.mitigations||!data.mitigations.length){el.innerHTML='<div class="empty">No mitigations available</div>';return}
-  el.innerHTML=data.mitigations.slice(0,6).map((m,i)=>{
+  el.innerHTML=data.mitigations.slice(0,8).map((m,i)=>{
     const bc=m.priority==='critical'?'var(--red)':'var(--amber)';
     const bl=m.priority==='critical'?'CRITICAL':'HIGH';
-    return '<div class="mit" style="border-left:3px solid '+bc+';animation:si .3s ease '+(i*60+200)+'ms both">'
-      +'<div class="mit-act">'+esc(m.action)+'</div>'
+    return '<div class="mit" id="mit-'+esc(m.id)+'" style="border-left:3px solid '+bc+';animation:si .3s ease '+(i*60+200)+'ms both">'
+      +'<div class="mit-act"><span>'+esc(m.action)+'</span>'
+      +'<button class="mit-apply" onclick="applyMit(\''+esc(m.targetNodeId)+'\',\''+esc(m.id)+'\','+m.estimatedSavingsPerHour+',this)">Apply</button></div>'
       +'<div style="font-size:8px;color:var(--text-3);margin-bottom:2px">'+esc(m.description||'')+'</div>'
       +'<div class="mit-row"><span><span class="mit-badge" style="background:'+bc+'22;color:'+bc+'">'+bl+'</span> '+esc(m.targetNode)+'</span>'
       +'<span>-'+(m.effectiveness*100).toFixed(0)+'% risk</span>'
       +'<span>saves '+fR(m.estimatedSavingsPerHour)+'/hr</span>'
       +'<span>'+m.time_minutes+'min</span></div></div>';
   }).join('');
+}
+
+async function applyMit(nodeId,mitId,savings,btn){
+  if(appliedMits.has(mitId))return;
+  btn.disabled=true;btn.textContent='Applying...';
+  try{
+    const res=await api(API+'/api/mitigate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeId,mitigationId:mitId})});
+    if(res.success){
+      appliedMits.add(mitId);totalSaved+=savings;
+      btn.outerHTML='<span class="mit-applied">Applied</span>';
+      const bar=$('savings-bar');
+      bar.innerHTML='Mitigations applied: <strong>'+appliedMits.size+'</strong> &mdash; Saving est. <strong>'+fR(totalSaved)+'/hr</strong>';
+      bar.style.display='block';
+      toast('Mitigation applied: '+res.mitigation.name,2000);
+      await refreshEvt();
+      const stillFailed=await api(API+'/api/failed');
+      if(stillFailed.length>0){
+        const ids=stillFailed.map(f=>f.nodeId);
+        const c=getCtx();
+        const p=await api(API+'/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({failedNodes:ids,...c})});
+        curP=p;showPred(p);showRevenue(p);paintG(p);showKPI(p);
+      }else{
+        toast('All services restored! Cascade halted.',3000);
+        await restoreAll();
+      }
+    }
+  }catch(e){btn.disabled=false;btn.textContent='Apply'}
 }
 
 function paintG(pred){
@@ -401,9 +459,10 @@ async function refreshEvt(){
       const t=new Date(e.timestamp).toLocaleTimeString();let m='';
       if(e.type==='failure')m='<strong style="color:var(--red)">'+esc(e.name)+'</strong> failed';
       else if(e.type==='cascade_failure')m='<strong style="color:var(--amber)">'+esc(e.name)+'</strong> cascade ('+esc(e.edgeType)+')';
+      else if(e.type==='mitigation_applied')m='<strong style="color:var(--green)">'+esc(e.name)+'</strong> mitigated ('+(e.effectiveness*100).toFixed(0)+'%)';
       else if(e.type==='restore_all')m='<strong style="color:var(--green)">All restored</strong>';
       else if(e.type==='restore')m='<strong style="color:var(--green)">'+esc(e.name)+'</strong> restored';
-      return '<div class="ev '+esc(e.type)+'"><span class="ev-t">'+esc(t)+'</span> '+m+'</div>';
+      return '<div class="ev '+(e.type==='mitigation_applied'?'restore':esc(e.type))+'"><span class="ev-t">'+esc(t)+'</span> '+m+'</div>';
     }).join('');
   }catch(e){}
 }
@@ -414,7 +473,9 @@ async function restoreAll(){
     if(nEls){nEls.select('.nc').transition().duration(500).attr('fill',d=>CCH[d.category]).attr('fill-opacity',.12).attr('stroke',d=>CCH[d.category]).attr('stroke-width',1.6).attr('r',16);
       lEls.transition().duration(500).attr('stroke','#252a40').attr('stroke-opacity',.45).attr('stroke-width',d=>d.weight*2)}
     $('pred-list').innerHTML='<div class="empty">Select a node or scenario</div>';$('pred-n').textContent='-';
+    $('rev-body').innerHTML='<div class="empty">Run a scenario to see revenue impact</div>';
     $('mit-list').innerHTML='<div class="empty">Run a scenario to see recommendations</div>';
+    $('savings-bar').style.display='none';appliedMits.clear();totalSaved=0;
     const t=GD?GD.nodes.length:15;
     $('k-on').textContent=t+' / '+t;$('k-on').style.color='var(--green)';$('k-on-f').textContent='All systems operational';
     $('k-rk').textContent='Low';$('k-rk').style.color='var(--brand)';$('k-rk-f').textContent='No active cascades';
