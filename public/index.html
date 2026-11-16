@@ -140,6 +140,21 @@ select.cs:focus{border-color:var(--brand)}
 .toast.show{display:block;animation:fu .25s ease}
 @keyframes fu{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .empty{padding:16px;text-align:center;color:var(--text-3);font-size:10px}
+.an-insight{grid-column:1/-1;background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(34,211,238,.06));border:1px solid rgba(139,92,246,.2);border-radius:var(--r);padding:10px 14px;font-size:10px;color:var(--text-2);line-height:1.6}
+.an-insight strong{color:var(--text-1)}.an-insight .hi{color:var(--red);font-weight:700}.an-insight .lo{color:var(--green);font-weight:700}.an-insight .nu{color:var(--cyan);font-weight:600}
+.ch-foot{padding:6px 12px 8px;font-size:9px;color:var(--text-3);border-top:1px solid var(--border);line-height:1.5}
+.ch-foot strong{color:var(--text-2)}
+.ch-foot .flag{display:inline-block;padding:1px 5px;border-radius:3px;font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-left:3px}
+.ch-foot .flag-r{background:var(--red-dim);color:var(--red)}.ch-foot .flag-a{background:var(--amber-dim);color:var(--amber)}.ch-foot .flag-g{background:var(--green-dim);color:var(--green)}
+.trg-row{display:grid;grid-template-columns:20px 1fr 50px 1fr 60px;gap:8px;padding:5px 4px;font-size:10px;align-items:center;border-bottom:1px solid var(--border)}
+.trg-row:last-child{border-bottom:0}
+.trg-rank{font-weight:700;color:var(--text-3);text-align:center}
+.trg-bar{height:6px;border-radius:3px;background:var(--bg-0);overflow:hidden}
+.trg-fill{height:100%;border-radius:3px;transition:width .5s}
+.trg-cnt{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.trg-sev{display:flex;gap:3px;font-size:8px}
+.trg-s{padding:1px 4px;border-radius:3px;font-weight:600}
+.hm-tip{position:absolute;background:var(--bg-3);border:1px solid var(--border-h);border-radius:6px;padding:5px 8px;font-size:9px;pointer-events:none;z-index:500;display:none;white-space:nowrap}
 @keyframes si{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
 @media(max-width:960px){.v-mon{grid-template-columns:1fr}.v-an{grid-template-columns:1fr}.kpi-row{grid-template-columns:repeat(3,1fr)}}
 </style>
@@ -213,10 +228,31 @@ select.cs:focus{border-color:var(--brand)}
     <div class="kpi"><div class="kpi-h">Avg Recovery</div><div class="kpi-v" id="a-rec" style="color:var(--blue)">-</div><div class="kpi-f">Hours per incident</div></div>
     <div class="kpi"><div class="kpi-h">Est. Annual Loss</div><div class="kpi-v" id="a-loss" style="color:var(--cyan)">-</div><div class="kpi-f">Revenue impact</div></div>
   </div>
-  <div class="ch"><div class="ch-t">Incidents by Category <span class="ch-desc">Which infrastructure sectors fail most often</span></div><div class="ch-b" id="c-cat" style="height:240px"></div></div>
-  <div class="ch"><div class="ch-t">Severity Distribution <span class="ch-desc">Critical vs high vs medium split</span></div><div class="ch-b" id="c-sev" style="height:240px"></div></div>
-  <div class="ch"><div class="ch-t">Monthly Trend <span class="ch-desc">Stacked severity counts over time</span></div><div class="ch-b" id="c-tl" style="height:240px"></div></div>
-  <div class="ch"><div class="ch-t">Failure Heatmap <span class="ch-desc">When failures cluster: hour vs day of week</span></div><div class="ch-b" id="c-hm" style="height:240px"></div></div>
+  <div class="an-insight" id="a-insight"></div>
+  <div class="ch">
+    <div class="ch-t">Incidents by Category <span class="ch-desc">Which infrastructure sectors fail most — identifies where to invest in redundancy</span></div>
+    <div class="ch-b" id="c-cat" style="height:240px"></div>
+    <div class="ch-foot" id="cf-cat"></div>
+  </div>
+  <div class="ch">
+    <div class="ch-t">Severity Distribution <span class="ch-desc">Breakdown of how dangerous each incident was — critical means cascading + data loss risk</span></div>
+    <div class="ch-b" id="c-sev" style="height:240px"></div>
+    <div class="ch-foot" id="cf-sev"></div>
+  </div>
+  <div class="ch">
+    <div class="ch-t">Monthly Trend <span class="ch-desc">Are failures increasing or decreasing? Stacked bars show severity mix per month</span></div>
+    <div class="ch-b" id="c-tl" style="height:240px"></div>
+    <div class="ch-foot" id="cf-tl"></div>
+  </div>
+  <div class="ch">
+    <div class="ch-t">Failure Heatmap <span class="ch-desc">Shows when failures cluster by hour and weekday — darker cells = more incidents. Guides staffing and maintenance windows</span></div>
+    <div class="ch-b" id="c-hm" style="height:240px"></div>
+    <div class="ch-foot" id="cf-hm"></div>
+  </div>
+  <div class="ch" style="grid-column:1/-1">
+    <div class="ch-t">Top Failure Triggers <span class="ch-desc">Ranked by frequency — these are the root cause nodes that start cascading failures</span></div>
+    <div class="ch-b" id="c-trg" style="padding:6px 10px"></div>
+  </div>
 </div>
 
 <div class="tip" id="tip"></div>
@@ -516,12 +552,35 @@ async function loadAn(){
 }
 
 function fillAKPI(h){
-  let tot=0,aff=0,dur=0,cri=0,topN='',topC=0,totalRev=0;
-  for(const[k,v]of Object.entries(h)){tot+=v.count;aff+=v.avgAffected*v.count;dur+=v.avgDuration*v.count;cri+=(v.severityCounts?.critical||0);if(v.count>topC){topC=v.count;topN=v.name}}
+  let tot=0,aff=0,dur=0,cri=0,topN='',topC=0;
+  const entries=Object.entries(h);
+  for(const[k,v]of entries){tot+=v.count;aff+=v.avgAffected*v.count;dur+=v.avgDuration*v.count;cri+=(v.severityCounts?.critical||0);if(v.count>topC){topC=v.count;topN=v.name}}
+  const avgA=(aff/tot).toFixed(1),avgD=(dur/tot).toFixed(1),loss=tot*avgD*850000;
   $('a-tot').textContent=tot;$('a-trg').textContent=topN;$('a-trg-f').textContent=topC+' incidents';
-  $('a-avg').textContent=(aff/tot).toFixed(1);$('a-cri').textContent=cri;
-  $('a-rec').textContent=(dur/tot).toFixed(1)+'h';
-  $('a-loss').textContent=fR(tot*(dur/tot)*850000);
+  $('a-avg').textContent=avgA;$('a-cri').textContent=cri;
+  $('a-rec').textContent=avgD+'h';
+  $('a-loss').textContent=fR(loss);
+  const criPct=((cri/tot)*100).toFixed(0);
+  $('a-insight').innerHTML='<strong>Key Insight:</strong> Over 12 months, <span class="nu">'+tot+'</span> infrastructure incidents caused an estimated <span class="nu">'+fR(loss)+'</span> in revenue losses. '
+    +'<strong>'+esc(topN)+'</strong> is the #1 root cause with <span class="hi">'+topC+' incidents</span>. '
+    +'Each failure cascades to an average of <span class="nu">'+avgA+' services</span> and takes <span class="nu">'+avgD+'h</span> to recover. '
+    +(criPct>30?'<span class="hi">'+criPct+'% of incidents are critical severity</span> — immediate investment in redundancy for '+esc(topN)+' is recommended.'
+    :'<span class="lo">'+criPct+'% critical rate</span> is manageable but should be monitored.');
+  // trigger ranking table
+  const sorted=entries.sort((a,b)=>b[1].count-a[1].count);
+  const maxC=sorted[0]?sorted[0][1].count:1;
+  $('c-trg').innerHTML=sorted.map(([k,v],i)=>{
+    const sc=v.severityCounts||{};const c=CCH[v.category]||'#8b5cf6';
+    return '<div class="trg-row"><span class="trg-rank">#'+(i+1)+'</span>'
+      +'<span>'+esc(v.name)+'</span>'
+      +'<span class="trg-cnt" style="color:'+c+'">'+v.count+'</span>'
+      +'<span><div class="trg-bar"><div class="trg-fill" style="width:'+(v.count/maxC*100)+'%;background:'+c+'"></div></div></span>'
+      +'<span class="trg-sev">'
+      +(sc.critical?'<span class="trg-s" style="background:var(--red-dim);color:var(--red)">'+sc.critical+'C</span>':'')
+      +(sc.high?'<span class="trg-s" style="background:var(--amber-dim);color:var(--amber)">'+sc.high+'H</span>':'')
+      +(sc.medium?'<span class="trg-s" style="background:var(--blue-dim);color:var(--blue)">'+sc.medium+'M</span>':'')
+      +'</span></div>';
+  }).join('');
 }
 
 function chCat(cats){
@@ -540,6 +599,10 @@ function chCat(cats){
   g.selectAll('.vl').data(cats).enter().append('text').attr('x',d=>x(d.category)+x.bandwidth()/2).attr('y',d=>y(d.count)-5)
     .attr('text-anchor','middle').attr('fill','#f0f2f8').attr('font-size','10px').attr('font-weight','600')
     .text(d=>d.count).attr('opacity',0).transition().duration(700).delay((_,i)=>i*90).attr('opacity',1);
+  const sorted=[...cats].sort((a,b)=>b.count-a.count);const top=sorted[0],bot=sorted[sorted.length-1];
+  $('cf-cat').innerHTML='<strong>'+esc(top.category)+'</strong> leads with '+top.count+' incidents ('+((top.critical/top.count)*100).toFixed(0)+'% critical) <span class="flag flag-r">highest risk</span> &mdash; '
+    +'<strong>'+esc(bot.category)+'</strong> is most stable at only '+bot.count+' <span class="flag flag-g">lowest risk</span>. '
+    +'<strong>Action:</strong> Prioritize backup power and redundancy for '+esc(top.category)+' infrastructure.';
 }
 
 function chSev(cats){
@@ -556,6 +619,11 @@ function chSev(cats){
   g.append('text').attr('text-anchor','middle').attr('dy','1.4em').attr('fill','#5c6280').attr('font-size','8px').text('total incidents');
   const lg=svg.append('g').attr('transform','translate('+(W-85)+',20)');
   sd.forEach((d,i)=>{const r=lg.append('g').attr('transform','translate(0,'+i*16+')');r.append('rect').attr('width',7).attr('height',7).attr('rx',2).attr('fill',d.c);r.append('text').attr('x',11).attr('y',7).attr('fill','#a4aac0').attr('font-size','9px').text(d.l+' ('+d.v+')')});
+  const total=tC+tH+tM,criP=((tC/total)*100).toFixed(0),hiP=((tH/total)*100).toFixed(0);
+  $('cf-sev').innerHTML='<strong>Critical:</strong> '+criP+'% of all incidents affected 5+ services with potential data loss. '
+    +'<strong>High:</strong> '+hiP+'% disrupted 3-5 services. '
+    +(tC>tH?'<span class="flag flag-r">critical exceeds high</span> More incidents are severely cascading than contained &mdash; systemic resilience needs improvement.'
+    :'<span class="flag flag-a">watch critical trend</span> Most incidents are contained, but critical count should be driven below '+Math.round(total*0.2)+'.');
 }
 
 function chTL(tl){
@@ -573,6 +641,15 @@ function chTL(tl){
     .selectAll('rect').data(d=>d).enter().append('rect').attr('x',d=>x(d.data.month)).attr('width',x.bandwidth()).attr('rx',2)
     .attr('y',ih).attr('height',0).transition().duration(600).delay((_,i)=>i*40)
     .attr('y',d=>y(d[1])).attr('height',d=>Math.max(0,y(d[0])-y(d[1])));
+  if(tl.length>=2){
+    const first=tl[0],last=tl[tl.length-1];
+    const peak=tl.reduce((a,b)=>b.total>a.total?b:a);
+    const trend=last.total>first.total?'increasing':'decreasing';
+    const tFlag=trend==='increasing'?'<span class="flag flag-r">worsening</span>':'<span class="flag flag-g">improving</span>';
+    $('cf-tl').innerHTML='Failures are <strong>'+trend+'</strong> over time '+tFlag+'. '
+      +'<strong>Peak month:</strong> '+esc(peak.month)+' with '+peak.total+' incidents ('+peak.critical+' critical). '
+      +'<strong>Action:</strong> '+(trend==='increasing'?'Schedule infrastructure audit and increase maintenance frequency.':'Continue current maintenance strategy; monitor for reversals.');
+  }
 }
 
 function chHM(hm){
@@ -592,7 +669,19 @@ function chHM(hm){
   g.selectAll('rect.c').data(data).enter().append('rect').attr('class','c')
     .attr('x',d=>xS(d.h)).attr('y',d=>yS(d.d)).attr('width',xS.bandwidth()).attr('height',yS.bandwidth())
     .attr('rx',2).attr('fill',d=>d.v?cS(d.v):'rgba(255,255,255,.02)')
-    .attr('opacity',0).transition().duration(400).delay((_,i)=>i).attr('opacity',1);
+    .attr('opacity',0).transition().duration(400).delay((_,i)=>i).attr('opacity',1)
+    .selection()
+    .on('mouseover',function(e,dd){
+      d3.select(this).attr('stroke','#fff').attr('stroke-width',1);
+      const t=$('tip');t.innerHTML='<div class="tip-t">'+days[dd.d]+' at '+dd.h+':00</div><div class="tip-l"><span class="tip-k">Incidents</span><span class="tip-v">'+dd.v+'</span></div>';
+      t.style.display='block';t.style.left=(e.pageX+10)+'px';t.style.top=(e.pageY-8)+'px';
+    }).on('mouseout',function(){d3.select(this).attr('stroke','none');$('tip').style.display='none'});
+  let peakD=0,peakH=0,peakV=0;data.forEach(d=>{if(d.v>peakV){peakV=d.v;peakD=d.d;peakH=d.h}});
+  const wkend=data.filter(d=>d.d===0||d.d===6).reduce((s,d)=>s+d.v,0);
+  const wkday=data.filter(d=>d.d>0&&d.d<6).reduce((s,d)=>s+d.v,0);
+  $('cf-hm').innerHTML='<strong>Hotspot:</strong> '+days[peakD]+' at '+peakH+':00 with '+peakV+' incidents <span class="flag flag-r">peak risk window</span>. '
+    +'Weekday total: '+wkday+' vs Weekend: '+wkend+'. '
+    +'<strong>Action:</strong> Ensure maximum staffing during '+(peakH>=6&&peakH<10?'morning rush':'evening peak')+' hours, especially on '+days[peakD]+'s.';
 }
 
 boot();
