@@ -1,0 +1,599 @@
+{
+  "nodes": [
+    {
+      "id": "power_grid",
+      "name": "Power Grid",
+      "category": "electricity",
+      "icon": "⚡",
+      "description": "Main electricity supply grid",
+      "baseReliability": 0.95,
+      "repairTimeHours": 4,
+      "population_affected": 2100000,
+      "revenue_per_hour": 850000,
+      "mitigation_options": [
+        {
+          "id": "pg_isolate",
+          "name": "Isolate Affected Sector",
+          "type": "isolate",
+          "effectiveness": 0.6,
+          "time_minutes": 15,
+          "description": "Disconnect failing sector to protect remaining grid"
+        },
+        {
+          "id": "pg_shed",
+          "name": "Emergency Load Shedding",
+          "type": "load_shed",
+          "effectiveness": 0.75,
+          "time_minutes": 5,
+          "description": "Reduce load by 40% across non-critical consumers"
+        },
+        {
+          "id": "pg_reroute",
+          "name": "Reroute via Backup Lines",
+          "type": "reroute",
+          "effectiveness": 0.5,
+          "time_minutes": 30,
+          "description": "Switch to secondary transmission lines"
+        }
+      ]
+    },
+    {
+      "id": "power_substation_a",
+      "name": "Substation Alpha",
+      "category": "electricity",
+      "icon": "🔌",
+      "description": "Distribution substation - North Zone",
+      "baseReliability": 0.92,
+      "repairTimeHours": 2,
+      "population_affected": 340000,
+      "revenue_per_hour": 320000,
+      "mitigation_options": [
+        {
+          "id": "psa_isolate",
+          "name": "Isolate Faulty Bus",
+          "type": "isolate",
+          "effectiveness": 0.55,
+          "time_minutes": 10,
+          "description": "Disconnect the faulty bus section to keep healthy feeders online"
+        },
+        {
+          "id": "psa_reroute",
+          "name": "Transfer Load to Beta",
+          "type": "reroute",
+          "effectiveness": 0.45,
+          "time_minutes": 20,
+          "description": "Shift north-zone load to Substation Beta via tie switches"
+        },
+        {
+          "id": "psa_shed",
+          "name": "Shed Non-Essential Feeders",
+          "type": "load_shed",
+          "effectiveness": 0.65,
+          "time_minutes": 5,
+          "description": "Drop commercial and industrial feeders to preserve residential supply"
+        }
+      ]
+    },
+    {
+      "id": "power_substation_b",
+      "name": "Substation Beta",
+      "category": "electricity",
+      "icon": "🔌",
+      "description": "Distribution substation - South Zone",
+      "baseReliability": 0.92,
+      "repairTimeHours": 2,
+      "population_affected": 425000,
+      "revenue_per_hour": 410000,
+      "mitigation_options": [
+        {
+          "id": "psb_isolate",
+          "name": "Isolate Faulty Bus",
+          "type": "isolate",
+          "effectiveness": 0.55,
+          "time_minutes": 10,
+          "description": "Disconnect the faulty bus section to keep healthy feeders online"
+        },
+        {
+          "id": "psb_reroute",
+          "name": "Transfer Load to Alpha",
+          "type": "reroute",
+          "effectiveness": 0.4,
+          "time_minutes": 25,
+          "description": "Shift south-zone load to Substation Alpha via tie switches"
+        },
+        {
+          "id": "psb_shed",
+          "name": "Shed Non-Essential Feeders",
+          "type": "load_shed",
+          "effectiveness": 0.65,
+          "time_minutes": 5,
+          "description": "Drop commercial and industrial feeders to preserve residential supply"
+        }
+      ]
+    },
+    {
+      "id": "water_treatment",
+      "name": "Water Treatment Plant",
+      "category": "water",
+      "icon": "🏭",
+      "description": "Main water treatment and purification facility",
+      "baseReliability": 0.93,
+      "repairTimeHours": 6,
+      "population_affected": 1800000,
+      "revenue_per_hour": 185000,
+      "mitigation_options": [
+        {
+          "id": "wt_isolate",
+          "name": "Close Intake Valves",
+          "type": "isolate",
+          "effectiveness": 0.5,
+          "time_minutes": 10,
+          "description": "Shut intake valves to prevent contaminated water from entering distribution"
+        },
+        {
+          "id": "wt_manual",
+          "name": "Manual Chlorination Bypass",
+          "type": "manual_override",
+          "effectiveness": 0.6,
+          "time_minutes": 30,
+          "description": "Switch to manual chemical dosing to maintain basic disinfection"
+        },
+        {
+          "id": "wt_reroute",
+          "name": "Activate Emergency Tanker Supply",
+          "type": "reroute",
+          "effectiveness": 0.35,
+          "time_minutes": 60,
+          "description": "Deploy water tankers to critical facilities while plant is offline"
+        }
+      ]
+    },
+    {
+      "id": "water_pump_station",
+      "name": "Water Pump Station",
+      "category": "water",
+      "icon": "💧",
+      "description": "Pumps water to residential and commercial areas",
+      "baseReliability": 0.90,
+      "repairTimeHours": 3,
+      "population_affected": 680000,
+      "revenue_per_hour": 95000,
+      "mitigation_options": [
+        {
+          "id": "wp_manual",
+          "name": "Manual Pump Operation",
+          "type": "manual_override",
+          "effectiveness": 0.4,
+          "time_minutes": 20,
+          "description": "Switch to diesel-powered backup pumps with manual valve control"
+        },
+        {
+          "id": "wp_reroute",
+          "name": "Gravity-Feed from Reservoir",
+          "type": "reroute",
+          "effectiveness": 0.55,
+          "time_minutes": 15,
+          "description": "Open gravity-feed lines from elevated reservoir to maintain partial pressure"
+        }
+      ]
+    },
+    {
+      "id": "water_reservoir",
+      "name": "Water Reservoir",
+      "category": "water",
+      "icon": "🌊",
+      "description": "City water storage reservoir",
+      "baseReliability": 0.97,
+      "repairTimeHours": 8,
+      "population_affected": 2100000,
+      "revenue_per_hour": 45000,
+      "mitigation_options": [
+        {
+          "id": "wr_isolate",
+          "name": "Seal Compromised Section",
+          "type": "isolate",
+          "effectiveness": 0.7,
+          "time_minutes": 45,
+          "description": "Close isolation gates to prevent further water loss from damaged section"
+        },
+        {
+          "id": "wr_reroute",
+          "name": "Activate Backup Reservoir",
+          "type": "reroute",
+          "effectiveness": 0.5,
+          "time_minutes": 30,
+          "description": "Switch supply intake to secondary reservoir (limited 12-hour capacity)"
+        }
+      ]
+    },
+    {
+      "id": "mobile_tower_cluster_a",
+      "name": "Cell Towers - North",
+      "category": "telecom",
+      "icon": "📡",
+      "description": "Mobile network towers covering north zone",
+      "baseReliability": 0.91,
+      "repairTimeHours": 2,
+      "population_affected": 185000,
+      "revenue_per_hour": 125000,
+      "mitigation_options": [
+        {
+          "id": "mta_backup",
+          "name": "Activate Tower Batteries",
+          "type": "backup_activate",
+          "effectiveness": 0.7,
+          "time_minutes": 5,
+          "description": "Switch towers to onsite battery packs (4-hour capacity)"
+        },
+        {
+          "id": "mta_shed",
+          "name": "Reduce to 2G/Voice Only",
+          "type": "load_shed",
+          "effectiveness": 0.6,
+          "time_minutes": 10,
+          "description": "Drop data services to conserve power and prioritize voice/SMS"
+        },
+        {
+          "id": "mta_reroute",
+          "name": "Handoff to South Cluster",
+          "type": "reroute",
+          "effectiveness": 0.35,
+          "time_minutes": 15,
+          "description": "Expand south cluster coverage radius to partially serve north zone"
+        }
+      ]
+    },
+    {
+      "id": "mobile_tower_cluster_b",
+      "name": "Cell Towers - South",
+      "category": "telecom",
+      "icon": "📡",
+      "description": "Mobile network towers covering south zone",
+      "baseReliability": 0.91,
+      "repairTimeHours": 2,
+      "population_affected": 230000,
+      "revenue_per_hour": 155000,
+      "mitigation_options": [
+        {
+          "id": "mtb_backup",
+          "name": "Activate Tower Batteries",
+          "type": "backup_activate",
+          "effectiveness": 0.7,
+          "time_minutes": 5,
+          "description": "Switch towers to onsite battery packs (4-hour capacity)"
+        },
+        {
+          "id": "mtb_shed",
+          "name": "Reduce to 2G/Voice Only",
+          "type": "load_shed",
+          "effectiveness": 0.6,
+          "time_minutes": 10,
+          "description": "Drop data services to conserve power and prioritize voice/SMS"
+        },
+        {
+          "id": "mtb_reroute",
+          "name": "Handoff to North Cluster",
+          "type": "reroute",
+          "effectiveness": 0.3,
+          "time_minutes": 15,
+          "description": "Expand north cluster coverage radius to partially serve south zone"
+        }
+      ]
+    },
+    {
+      "id": "telecom_data_center",
+      "name": "Telecom Data Center",
+      "category": "telecom",
+      "icon": "🖥️",
+      "description": "Core telecom switching and data center",
+      "baseReliability": 0.96,
+      "repairTimeHours": 3,
+      "population_affected": 950000,
+      "revenue_per_hour": 520000,
+      "hasBackupPower": true,
+      "backupDurationHours": 4,
+      "mitigation_options": [
+        {
+          "id": "tdc_backup",
+          "name": "Activate Diesel Generators",
+          "type": "backup_activate",
+          "effectiveness": 0.85,
+          "time_minutes": 3,
+          "description": "Switch to onsite diesel generators (48-hour fuel reserve)"
+        },
+        {
+          "id": "tdc_reroute",
+          "name": "Failover to DR Site",
+          "type": "reroute",
+          "effectiveness": 0.7,
+          "time_minutes": 20,
+          "description": "Redirect traffic to disaster recovery data center 40km away"
+        },
+        {
+          "id": "tdc_shed",
+          "name": "Throttle Non-Critical Traffic",
+          "type": "load_shed",
+          "effectiveness": 0.6,
+          "time_minutes": 5,
+          "description": "Deprioritize streaming and bulk data to preserve voice and emergency services"
+        }
+      ]
+    },
+    {
+      "id": "traffic_signals_north",
+      "name": "Traffic Signals - North",
+      "category": "roads",
+      "icon": "🚦",
+      "description": "Traffic management system for north zone",
+      "baseReliability": 0.88,
+      "repairTimeHours": 1,
+      "population_affected": 75000,
+      "revenue_per_hour": 35000,
+      "mitigation_options": [
+        {
+          "id": "tsn_manual",
+          "name": "Deploy Traffic Police",
+          "type": "manual_override",
+          "effectiveness": 0.6,
+          "time_minutes": 20,
+          "description": "Station officers at major intersections to direct traffic manually"
+        },
+        {
+          "id": "tsn_reroute",
+          "name": "Activate Detour Signage",
+          "type": "reroute",
+          "effectiveness": 0.45,
+          "time_minutes": 30,
+          "description": "Deploy electronic detour signs to redirect traffic to functioning corridors"
+        }
+      ]
+    },
+    {
+      "id": "traffic_signals_south",
+      "name": "Traffic Signals - South",
+      "category": "roads",
+      "icon": "🚦",
+      "description": "Traffic management system for south zone",
+      "baseReliability": 0.88,
+      "repairTimeHours": 1,
+      "population_affected": 92000,
+      "revenue_per_hour": 42000,
+      "mitigation_options": [
+        {
+          "id": "tss_manual",
+          "name": "Deploy Traffic Police",
+          "type": "manual_override",
+          "effectiveness": 0.6,
+          "time_minutes": 20,
+          "description": "Station officers at major intersections to direct traffic manually"
+        },
+        {
+          "id": "tss_reroute",
+          "name": "Activate Detour Signage",
+          "type": "reroute",
+          "effectiveness": 0.45,
+          "time_minutes": 30,
+          "description": "Deploy electronic detour signs to redirect traffic to functioning corridors"
+        }
+      ]
+    },
+    {
+      "id": "traffic_control_center",
+      "name": "Traffic Control Center",
+      "category": "roads",
+      "icon": "🏢",
+      "description": "Central traffic monitoring and control",
+      "baseReliability": 0.94,
+      "repairTimeHours": 2,
+      "population_affected": 410000,
+      "revenue_per_hour": 78000,
+      "mitigation_options": [
+        {
+          "id": "tcc_manual",
+          "name": "Switch to Local Signal Timers",
+          "type": "manual_override",
+          "effectiveness": 0.55,
+          "time_minutes": 10,
+          "description": "Revert all signals to pre-programmed fixed-cycle timers (no adaptive control)"
+        },
+        {
+          "id": "tcc_backup",
+          "name": "Activate Backup Control Room",
+          "type": "backup_activate",
+          "effectiveness": 0.7,
+          "time_minutes": 25,
+          "description": "Spin up the secondary control room with mirrored SCADA connection"
+        },
+        {
+          "id": "tcc_reroute",
+          "name": "Delegate to Zone Controllers",
+          "type": "reroute",
+          "effectiveness": 0.5,
+          "time_minutes": 15,
+          "description": "Hand control to north and south zone local controllers"
+        }
+      ]
+    },
+    {
+      "id": "hospital_north",
+      "name": "City Hospital - North",
+      "category": "emergency",
+      "icon": "🏥",
+      "description": "Major hospital in north zone",
+      "baseReliability": 0.98,
+      "repairTimeHours": 1,
+      "population_affected": 45000,
+      "revenue_per_hour": 280000,
+      "hasBackupPower": true,
+      "backupDurationHours": 8,
+      "mitigation_options": [
+        {
+          "id": "hn_backup",
+          "name": "Activate Backup Generators",
+          "type": "backup_activate",
+          "effectiveness": 0.9,
+          "time_minutes": 2,
+          "description": "Automatic transfer switch to diesel generators (8-hour fuel reserve)"
+        },
+        {
+          "id": "hn_reroute",
+          "name": "Divert Ambulances to South",
+          "type": "reroute",
+          "effectiveness": 0.5,
+          "time_minutes": 5,
+          "description": "Redirect incoming patients to City Hospital South"
+        },
+        {
+          "id": "hn_manual",
+          "name": "Activate Emergency Protocol",
+          "type": "manual_override",
+          "effectiveness": 0.7,
+          "time_minutes": 10,
+          "description": "Switch to manual patient monitoring and paper records"
+        }
+      ]
+    },
+    {
+      "id": "hospital_south",
+      "name": "City Hospital - South",
+      "category": "emergency",
+      "icon": "🏥",
+      "description": "Major hospital in south zone",
+      "baseReliability": 0.98,
+      "repairTimeHours": 1,
+      "population_affected": 58000,
+      "revenue_per_hour": 340000,
+      "hasBackupPower": true,
+      "backupDurationHours": 8,
+      "mitigation_options": [
+        {
+          "id": "hs_backup",
+          "name": "Activate Backup Generators",
+          "type": "backup_activate",
+          "effectiveness": 0.9,
+          "time_minutes": 2,
+          "description": "Automatic transfer switch to diesel generators (8-hour fuel reserve)"
+        },
+        {
+          "id": "hs_reroute",
+          "name": "Divert Ambulances to North",
+          "type": "reroute",
+          "effectiveness": 0.45,
+          "time_minutes": 5,
+          "description": "Redirect incoming patients to City Hospital North"
+        },
+        {
+          "id": "hs_manual",
+          "name": "Activate Emergency Protocol",
+          "type": "manual_override",
+          "effectiveness": 0.7,
+          "time_minutes": 10,
+          "description": "Switch to manual patient monitoring and paper records"
+        }
+      ]
+    },
+    {
+      "id": "emergency_services",
+      "name": "Emergency Services (112)",
+      "category": "emergency",
+      "icon": "🚑",
+      "description": "Ambulance, fire, police dispatch",
+      "baseReliability": 0.97,
+      "repairTimeHours": 1,
+      "population_affected": 2100000,
+      "revenue_per_hour": 750000,
+      "hasBackupPower": true,
+      "backupDurationHours": 6,
+      "mitigation_options": [
+        {
+          "id": "es_reroute",
+          "name": "Redirect to Neighboring Dispatch",
+          "type": "reroute",
+          "effectiveness": 0.55,
+          "time_minutes": 10,
+          "description": "Forward 112 calls to regional dispatch center in adjacent district"
+        },
+        {
+          "id": "es_backup",
+          "name": "Activate Satellite Comms",
+          "type": "backup_activate",
+          "effectiveness": 0.75,
+          "time_minutes": 8,
+          "description": "Switch dispatch to satellite-based communication backup"
+        },
+        {
+          "id": "es_manual",
+          "name": "Deploy Field Coordinators",
+          "type": "manual_override",
+          "effectiveness": 0.5,
+          "time_minutes": 15,
+          "description": "Station coordinators at fire stations and police precincts for direct dispatch"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    { "from": "power_grid", "to": "power_substation_a", "weight": 0.95, "type": "powers" },
+    { "from": "power_grid", "to": "power_substation_b", "weight": 0.95, "type": "powers" },
+    { "from": "power_substation_a", "to": "water_pump_station", "weight": 0.90, "type": "powers" },
+    { "from": "power_substation_a", "to": "mobile_tower_cluster_a", "weight": 0.85, "type": "powers" },
+    { "from": "power_substation_a", "to": "traffic_signals_north", "weight": 0.88, "type": "powers" },
+    { "from": "power_substation_a", "to": "hospital_north", "weight": 0.80, "type": "powers" },
+    { "from": "power_substation_b", "to": "mobile_tower_cluster_b", "weight": 0.85, "type": "powers" },
+    { "from": "power_substation_b", "to": "traffic_signals_south", "weight": 0.88, "type": "powers" },
+    { "from": "power_substation_b", "to": "hospital_south", "weight": 0.80, "type": "powers" },
+    { "from": "power_substation_b", "to": "telecom_data_center", "weight": 0.92, "type": "powers" },
+    { "from": "water_treatment", "to": "water_pump_station", "weight": 0.95, "type": "supplies" },
+    { "from": "water_reservoir", "to": "water_treatment", "weight": 0.90, "type": "supplies" },
+    { "from": "water_pump_station", "to": "hospital_north", "weight": 0.70, "type": "supplies" },
+    { "from": "water_pump_station", "to": "hospital_south", "weight": 0.70, "type": "supplies" },
+    { "from": "telecom_data_center", "to": "mobile_tower_cluster_a", "weight": 0.88, "type": "connects" },
+    { "from": "telecom_data_center", "to": "mobile_tower_cluster_b", "weight": 0.88, "type": "connects" },
+    { "from": "mobile_tower_cluster_a", "to": "emergency_services", "weight": 0.82, "type": "enables" },
+    { "from": "mobile_tower_cluster_b", "to": "emergency_services", "weight": 0.82, "type": "enables" },
+    { "from": "traffic_control_center", "to": "traffic_signals_north", "weight": 0.90, "type": "controls" },
+    { "from": "traffic_control_center", "to": "traffic_signals_south", "weight": 0.90, "type": "controls" },
+    { "from": "power_substation_a", "to": "traffic_control_center", "weight": 0.85, "type": "powers" },
+    { "from": "traffic_signals_north", "to": "hospital_north", "weight": 0.60, "type": "access" },
+    { "from": "traffic_signals_south", "to": "hospital_south", "weight": 0.60, "type": "access" },
+    { "from": "emergency_services", "to": "hospital_north", "weight": 0.75, "type": "dispatches" },
+    { "from": "emergency_services", "to": "hospital_south", "weight": 0.75, "type": "dispatches" }
+  ],
+  "scenarios": [
+    {
+      "id": "power_outage",
+      "name": "Major Power Grid Failure",
+      "description": "Complete power grid failure affecting the entire city",
+      "trigger": "power_grid",
+      "severity": "critical"
+    },
+    {
+      "id": "substation_failure",
+      "name": "Substation Alpha Failure",
+      "description": "North zone substation goes offline",
+      "trigger": "power_substation_a",
+      "severity": "high"
+    },
+    {
+      "id": "water_contamination",
+      "name": "Water Treatment Failure",
+      "description": "Water treatment plant malfunction",
+      "trigger": "water_treatment",
+      "severity": "high"
+    },
+    {
+      "id": "telecom_outage",
+      "name": "Telecom Data Center Down",
+      "description": "Central telecom infrastructure failure",
+      "trigger": "telecom_data_center",
+      "severity": "high"
+    },
+    {
+      "id": "flood_scenario",
+      "name": "Urban Flooding",
+      "description": "Heavy rain causing multiple infrastructure failures",
+      "triggers": ["power_substation_b", "traffic_signals_south", "water_reservoir"],
+      "severity": "critical"
+    }
+  ]
+}
